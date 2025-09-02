@@ -63,6 +63,7 @@ main_test.go
 *_test.go
 client_example_test.go
 client_example_test
+client_example.go
 
 # Batch files
 *.bat
