@@ -53,3 +53,14 @@ coverage.html
 
 # Air live reload tool
 tmp/
+
+# Documentation files to ignore
+*.md
+COMPLETE_PRODUCT.md
+
+# Test files
+main_test.go
+*_test.go
+
+# Batch files
+*.bat
