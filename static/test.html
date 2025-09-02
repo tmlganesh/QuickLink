@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>URL Shortener Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="url"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f9ff;
+            border-radius: 8px;
+            border: 1px solid #0ea5e9;
+            display: none;
+        }
+        .error {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fef2f2;
+            border-radius: 8px;
+            border: 1px solid #ef4444;
+            display: none;
+        }
+        .short-url {
+            font-weight: bold;
+            color: #0ea5e9;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 URL Shortener</h1>
+        <p>Enter a URL to create a short link:</p>
+        
+        <form id="urlForm">
+            <div class="form-group">
+                <label for="urlInput">URL to shorten:</label>
+                <input type="url" id="urlInput" placeholder="https://www.example.com" required>
+            </div>
+            <button type="submit">Shorten URL</button>
+        </form>
+        
+        <div id="result" class="result">
+            <h3>✅ Success!</h3>
+            <p><strong>Original URL:</strong> <span id="originalUrl"></span></p>
+            <p><strong>Short URL:</strong> <a href="#" id="shortUrl" class="short-url" target="_blank"></a></p>
+            <button onclick="copyToClipboard()">Copy Short URL</button>
+        </div>
+        
+        <div id="error" class="error">
+            <h3>❌ Error</h3>
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+
+    <script>
+        const urlForm = document.getElementById('urlForm');
+        const urlInput = document.getElementById('urlInput');
+        const result = document.getElementById('result');
+        const error = document.getElementById('error');
+        const originalUrl = document.getElementById('originalUrl');
+        const shortUrl = document.getElementById('shortUrl');
+        const errorMessage = document.getElementById('errorMessage');
+
+        urlForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const url = urlInput.value.trim();
+            if (!url) return;
+            
+            // Hide previous results
+            result.style.display = 'none';
+            error.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/shorten', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                
+                // Show success
+                originalUrl.textContent = data.original_url;
+                shortUrl.textContent = data.short_url;
+                shortUrl.href = data.short_url;
+                result.style.display = 'block';
+                
+            } catch (err) {
+                // Show error
+                errorMessage.textContent = err.message;
+                error.style.display = 'block';
+            }
+        });
+        
+        function copyToClipboard() {
+            const url = shortUrl.textContent;
+            navigator.clipboard.writeText(url).then(function() {
+                alert('Short URL copied to clipboard!');
+            }).catch(function() {
+                // Fallback
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('Short URL copied to clipboard!');
+            });
+        }
+        
+        // Test the API on page load
+        fetch('/api/health')
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Server is healthy:', data);
+            })
+            .catch(err => {
+                console.error('❌ Server health check failed:', err);
+            });
+    </script>
+</body>
+</html>
