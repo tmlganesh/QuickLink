@@ -13,25 +13,21 @@ import (
 	"time"
 )
 
-// DemoClient represents a client for testing the URL shortener
 type DemoClient struct {
 	baseURL string
 	client  *http.Client
 }
 
-// CreateURLRequest represents the request to create a short URL
 type CreateURLRequestDemo struct {
 	URL string `json:"url"`
 }
 
-// CreateURLResponse represents the response from creating a short URL
 type CreateURLResponseDemo struct {
 	ShortCode   string `json:"short_code"`
 	OriginalURL string `json:"original_url"`
 	ShortURL    string `json:"short_url"`
 }
 
-// URLStatsDemo represents URL statistics
 type URLStatsDemo struct {
 	ShortCode   string    `json:"short_code"`
 	OriginalURL string    `json:"original_url"`
@@ -95,7 +91,6 @@ func (c *DemoClient) GetStats(shortCode string) (*URLStatsDemo, error) {
 }
 
 func (c *DemoClient) AccessShortURL(shortCode string) error {
-	// Use a client that doesn't follow redirects to see the redirect response
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -135,11 +130,9 @@ func main() {
 
 	client := NewDemoClient("http://localhost:8080")
 
-	// Wait a moment for the server to start
 	fmt.Println("⏳ Waiting for server to start...")
 	time.Sleep(3 * time.Second)
 
-	// Test 1: Health Check
 	fmt.Println("\n1. 🏥 Health Check")
 	if err := client.HealthCheck(); err != nil {
 		log.Printf("❌ Health check failed: %v", err)
@@ -148,7 +141,6 @@ func main() {
 	}
 	fmt.Println("✅ Server is healthy!")
 
-	// Test 2: Create Short URLs
 	fmt.Println("\n2. 🔗 Creating Short URLs")
 	testURLs := []string{
 		"https://www.google.com",
@@ -181,7 +173,6 @@ func main() {
 		return
 	}
 
-	// Test 3: Access Short URLs
 	fmt.Println("\n3. 🌐 Testing URL Redirects")
 	for i, code := range createdCodes {
 		fmt.Printf("   Accessing short URL: /%s\n", code)
@@ -198,7 +189,6 @@ func main() {
 		}
 	}
 
-	// Test 4: Get Statistics
 	fmt.Println("\n4. 📊 Getting URL Statistics")
 	for _, code := range createdCodes {
 		stats, err := client.GetStats(code)
@@ -214,7 +204,6 @@ func main() {
 		fmt.Println()
 	}
 
-	// Test 5: Test Duplicate URL
 	fmt.Println("5. 🔄 Testing Duplicate URL Handling")
 	fmt.Println("   Creating short URL for duplicate: https://www.google.com")
 

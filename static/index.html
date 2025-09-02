@@ -393,7 +393,6 @@
             display: none !important;
         }
 
-        /* Responsive Design */
         @media (max-width: 768px) {
             .container {
                 padding: 15px;
@@ -522,10 +521,8 @@
     </div>
 
     <script>
-        // Global variables
         let currentShortCode = '';
 
-        // DOM elements
         const urlForm = document.getElementById('urlForm');
         const urlInput = document.getElementById('urlInput');
         const shortenBtn = document.getElementById('shortenBtn');
@@ -541,12 +538,10 @@
         const toast = document.getElementById('toast');
         const toastMessage = document.getElementById('toastMessage');
 
-        // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
             urlInput.focus();
             
-            // Test server connection
             fetch('/api/health')
                 .then(response => response.json())
                 .then(data => {

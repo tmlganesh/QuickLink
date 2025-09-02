@@ -1,4 +1,3 @@
-# Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
@@ -7,26 +6,20 @@
 url-shortener
 url-shortener.exe
 
-# Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Dependency directories
 vendor/
 
-# Go workspace file
 go.work
 
-# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -35,35 +28,27 @@ go.work
 ehthumbs.db
 Thumbs.db
 
-# Log files
 *.log
 
-# Environment variables
 .env
 .env.local
 .env.production
 
-# Temporary files
 *.tmp
 *.temp
 
-# Coverage files
 coverage.txt
 coverage.html
 
-# Air live reload tool
 tmp/
 
-# Documentation files to ignore
 *.md
 COMPLETE_PRODUCT.md
 
-# Test files
 main_test.go
 *_test.go
 client_example_test.go
 client_example_test
 client_example.go
 
-# Batch files
 *.bat

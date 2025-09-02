@@ -17,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// URLMapping represents a URL mapping in our storage
 type URLMapping struct {
 	ID          string    `json:"id"`
 	ShortCode   string    `json:"short_code"`
@@ -26,19 +25,16 @@ type URLMapping struct {
 	AccessCount int64     `json:"access_count"`
 }
 
-// CreateURLRequest represents the request body for creating a short URL
 type CreateURLRequest struct {
 	URL string `json:"url"`
 }
 
-// CreateURLResponse represents the response body for creating a short URL
 type CreateURLResponse struct {
 	ShortCode   string `json:"short_code"`
 	OriginalURL string `json:"original_url"`
 	ShortURL    string `json:"short_url"`
 }
 
-// URLStats represents URL statistics
 type URLStats struct {
 	ShortCode   string    `json:"short_code"`
 	OriginalURL string    `json:"original_url"`
@@ -46,14 +42,12 @@ type URLStats struct {
 	AccessCount int64     `json:"access_count"`
 }
 
-// URLShortener is our main service struct
 type URLShortener struct {
 	storage map[string]*URLMapping
 	mutex   sync.RWMutex
 	baseURL string
 }
 
-// NewURLShortener creates a new URL shortener instance
 func NewURLShortener(baseURL string) *URLShortener {
 	return &URLShortener{
 		storage: make(map[string]*URLMapping),
@@ -61,7 +55,6 @@ func NewURLShortener(baseURL string) *URLShortener {
 	}
 }
 
-// generateShortCode generates a random short code
 func (us *URLShortener) generateShortCode() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	const length = 6
@@ -74,18 +67,15 @@ func (us *URLShortener) generateShortCode() string {
 	return string(result)
 }
 
-// isValidURL checks if the provided URL is valid
 func isValidURL(str string) bool {
 	if str == "" {
 		return false
 	}
 
-	// Handle special invalid cases
 	if str == "invalid" || strings.HasPrefix(str, "://") || str == "not-a-valid-url" {
 		return false
 	}
 
-	// Add http:// if no scheme is present
 	if !strings.HasPrefix(str, "http://") && !strings.HasPrefix(str, "https://") && !strings.HasPrefix(str, "ftp://") {
 		str = "http://" + str
 	}
@@ -95,17 +85,14 @@ func isValidURL(str string) bool {
 		return false
 	}
 
-	// Check for valid scheme and host
 	if u.Scheme == "" || u.Host == "" {
 		return false
 	}
 
-	// Additional validation for host - must contain at least one dot or be localhost
 	if u.Host != "localhost" && !strings.Contains(u.Host, ".") {
 		return false
 	}
 
-	// Check for spaces or other invalid characters
 	if strings.Contains(u.Host, " ") {
 		return false
 	}
@@ -113,7 +100,6 @@ func isValidURL(str string) bool {
 	return true
 }
 
-// normalizeURL normalizes the URL by adding http:// if needed
 func normalizeURL(str string) string {
 	if !strings.HasPrefix(str, "http://") && !strings.HasPrefix(str, "https://") && !strings.HasPrefix(str, "ftp://") {
 		return "http://" + str
@@ -121,7 +107,6 @@ func normalizeURL(str string) string {
 	return str
 }
 
-// CreateShortURL creates a new short URL
 func (us *URLShortener) CreateShortURL(originalURL string) (*URLMapping, error) {
 	if !isValidURL(originalURL) {
 		return nil, fmt.Errorf("invalid URL provided")
@@ -129,7 +114,6 @@ func (us *URLShortener) CreateShortURL(originalURL string) (*URLMapping, error) 
 
 	normalizedURL := normalizeURL(originalURL)
 
-	// Check if URL already exists
 	us.mutex.RLock()
 	for _, mapping := range us.storage {
 		if mapping.OriginalURL == normalizedURL {
@@ -139,7 +123,6 @@ func (us *URLShortener) CreateShortURL(originalURL string) (*URLMapping, error) 
 	}
 	us.mutex.RUnlock()
 
-	// Generate unique short code
 	var shortCode string
 	us.mutex.Lock()
 	defer us.mutex.Unlock()
@@ -152,7 +135,7 @@ func (us *URLShortener) CreateShortURL(originalURL string) (*URLMapping, error) 
 	}
 
 	mapping := &URLMapping{
-		ID:          shortCode, // Using short code as ID for simplicity
+		ID:          shortCode,
 		ShortCode:   shortCode,
 		OriginalURL: normalizedURL,
 		CreatedAt:   time.Now(),
@@ -163,7 +146,6 @@ func (us *URLShortener) CreateShortURL(originalURL string) (*URLMapping, error) 
 	return mapping, nil
 }
 
-// GetOriginalURL retrieves the original URL by short code
 func (us *URLShortener) GetOriginalURL(shortCode string) (*URLMapping, error) {
 	us.mutex.Lock()
 	defer us.mutex.Unlock()
@@ -177,7 +159,6 @@ func (us *URLShortener) GetOriginalURL(shortCode string) (*URLMapping, error) {
 	return mapping, nil
 }
 
-// GetStats returns statistics for a short URL
 func (us *URLShortener) GetStats(shortCode string) (*URLMapping, error) {
 	us.mutex.RLock()
 	defer us.mutex.RUnlock()
@@ -190,7 +171,6 @@ func (us *URLShortener) GetStats(shortCode string) (*URLMapping, error) {
 	return mapping, nil
 }
 
-// getAllURLs returns all stored URLs (for admin purposes)
 func (us *URLShortener) getAllURLs() []*URLMapping {
 	us.mutex.RLock()
 	defer us.mutex.RUnlock()
@@ -201,8 +181,6 @@ func (us *URLShortener) getAllURLs() []*URLMapping {
 	}
 	return urls
 }
-
-// HTTP Handlers
 
 func (us *URLShortener) createShortURLHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -287,13 +265,10 @@ func (us *URLShortener) healthHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// Custom static file handler with proper MIME types
 func staticFileHandler(w http.ResponseWriter, r *http.Request) {
-	// Remove /static/ prefix to get the actual file path
 	filePath := strings.TrimPrefix(r.URL.Path, "/static/")
 	fullPath := filepath.Join("static", filePath)
 
-	// Set proper MIME type based on file extension
 	ext := filepath.Ext(filePath)
 	switch ext {
 	case ".css":
@@ -311,44 +286,35 @@ func staticFileHandler(w http.ResponseWriter, r *http.Request) {
 	case ".svg":
 		w.Header().Set("Content-Type", "image/svg+xml")
 	default:
-		// Try to detect MIME type
 		if contentType := mime.TypeByExtension(ext); contentType != "" {
 			w.Header().Set("Content-Type", contentType)
 		}
 	}
 
-	// Serve the file
 	http.ServeFile(w, r, fullPath)
 }
 
 func main() {
-	// Configuration
 	port := "8080"
 	baseURL := "http://localhost:" + port
 
-	// Create URL shortener instance
 	urlShortener := NewURLShortener(baseURL)
 
-	// Setup routes
 	r := mux.NewRouter()
 
-	// Serve static files with proper MIME types
 	r.PathPrefix("/static/").HandlerFunc(staticFileHandler)
 
-	// Serve index.html at root
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		http.ServeFile(w, r, "./static/index.html")
-	}).Methods("GET") // API routes
+	}).Methods("GET")
 	r.HandleFunc("/api/shorten", urlShortener.createShortURLHandler).Methods("POST")
 	r.HandleFunc("/api/stats/{shortCode}", urlShortener.statsHandler).Methods("GET")
 	r.HandleFunc("/api/urls", urlShortener.allURLsHandler).Methods("GET")
 	r.HandleFunc("/api/health", urlShortener.healthHandler).Methods("GET")
 
-	// Redirect route (must be last to avoid conflicts)
 	r.HandleFunc("/{shortCode:[a-zA-Z0-9]{6}}", urlShortener.redirectHandler).Methods("GET")
 
-	// Add CORS middleware
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
