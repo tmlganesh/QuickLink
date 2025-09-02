@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -205,10 +206,24 @@ func (us *URLShortener) createShortURLHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	scheme := "https"
+	if r.Header.Get("X-Forwarded-Proto") != "" {
+		scheme = r.Header.Get("X-Forwarded-Proto")
+	} else if r.TLS == nil {
+		scheme = "http"
+	}
+
+	host := r.Host
+	if forwardedHost := r.Header.Get("X-Forwarded-Host"); forwardedHost != "" {
+		host = forwardedHost
+	}
+
+	baseURL := fmt.Sprintf("%s://%s", scheme, host)
+
 	response := CreateURLResponse{
 		ShortCode:   mapping.ShortCode,
 		OriginalURL: mapping.OriginalURL,
-		ShortURL:    fmt.Sprintf("%s/%s", us.baseURL, mapping.ShortCode),
+		ShortURL:    fmt.Sprintf("%s/%s", baseURL, mapping.ShortCode),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -296,7 +311,18 @@ func staticFileHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	port := "8080"
-	baseURL := "http://localhost:" + port
+	if envPort := os.Getenv("PORT"); envPort != "" {
+		port = envPort
+	}
+
+	var baseURL string
+	if renderURL := os.Getenv("RENDER_EXTERNAL_URL"); renderURL != "" {
+		baseURL = renderURL
+	} else if appURL := os.Getenv("APP_URL"); appURL != "" {
+		baseURL = appURL
+	} else {
+		baseURL = "http://localhost:" + port
+	}
 
 	urlShortener := NewURLShortener(baseURL)
 
