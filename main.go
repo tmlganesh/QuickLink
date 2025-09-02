@@ -380,6 +380,8 @@ func main() {
 		baseURL = "http://localhost:" + port
 	}
 
+	log.Printf("Starting server on port %s with base URL: %s", port, baseURL)
+
 	urlShortener := NewURLShortener(baseURL)
 
 	r := mux.NewRouter()
@@ -395,7 +397,7 @@ func main() {
 	r.HandleFunc("/api/urls", urlShortener.allURLsHandler).Methods("GET")
 	r.HandleFunc("/api/health", urlShortener.healthHandler).Methods("GET")
 
-	r.HandleFunc("/{shortCode:[a-zA-Z0-9\\-_]{3,20}}", urlShortener.redirectHandler).Methods("GET")
+	r.HandleFunc("/{shortCode:[a-zA-Z0-9_-]{3,20}}", urlShortener.redirectHandler).Methods("GET")
 
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -429,5 +431,16 @@ func main() {
 	fmt.Println("        -H \"Content-Type: application/json\" \\")
 	fmt.Println("        -d '{\"url\":\"https://www.google.com\"}'")
 
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	server := &http.Server{
+		Addr:         ":" + port,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	log.Printf("Starting HTTP server on :%s", port)
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
+	}
 }
