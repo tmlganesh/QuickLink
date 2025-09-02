@@ -62,6 +62,7 @@ COMPLETE_PRODUCT.md
 main_test.go
 *_test.go
 client_example_test.go
+client_example_test
 
 # Batch files
 *.bat
