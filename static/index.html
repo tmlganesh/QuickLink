@@ -81,14 +81,19 @@
 
         .input-group {
             display: flex;
-            gap: 15px;
-            align-items: stretch;
+            flex-direction: column;
+            gap: 0;
             margin-bottom: 30px;
         }
 
         .input-wrapper {
             flex: 1;
             position: relative;
+            margin-bottom: 15px;
+        }
+
+        .input-wrapper.optional {
+            margin-bottom: 20px;
         }
 
         .input-icon {
@@ -101,7 +106,7 @@
             z-index: 2;
         }
 
-        #urlInput {
+        #urlInput, #customNameInput {
             width: 100%;
             padding: 20px 20px 20px 55px;
             font-size: 1.1rem;
@@ -112,11 +117,16 @@
             font-family: inherit;
         }
 
-        #urlInput:focus {
+        #customNameInput {
+            opacity: 0.8;
+        }
+
+        #urlInput:focus, #customNameInput:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
             transform: translateY(-2px);
+            opacity: 1;
         }
 
         .shorten-btn {
@@ -449,6 +459,17 @@
                                 autocomplete="url"
                             >
                         </div>
+                        <div class="input-wrapper optional">
+                            <i class="fas fa-tag input-icon"></i>
+                            <input 
+                                type="text" 
+                                id="customNameInput" 
+                                placeholder="Custom name (optional, 3-20 characters)" 
+                                pattern="[a-zA-Z0-9_-]{3,20}"
+                                title="3-20 characters, letters, numbers, hyphens and underscores only"
+                                autocomplete="off"
+                            >
+                        </div>
                         <button type="submit" id="shortenBtn" class="shorten-btn">
                             <i class="fas fa-magic"></i>
                             <span>Shorten URL</span>
@@ -525,6 +546,7 @@
 
         const urlForm = document.getElementById('urlForm');
         const urlInput = document.getElementById('urlInput');
+        const customNameInput = document.getElementById('customNameInput');
         const shortenBtn = document.getElementById('shortenBtn');
         const loading = document.getElementById('loading');
         const result = document.getElementById('result');
@@ -559,12 +581,15 @@
             newUrlBtn.addEventListener('click', resetForm);
             retryBtn.addEventListener('click', resetForm);
             urlInput.addEventListener('input', validateInput);
+            customNameInput.addEventListener('input', validateCustomName);
         }
 
         async function handleFormSubmit(e) {
             e.preventDefault();
             
             const url = urlInput.value.trim();
+            const customName = customNameInput.value.trim();
+            
             if (!url) {
                 showError('Please enter a URL');
                 return;
@@ -572,6 +597,22 @@
             
             if (!isValidUrl(url)) {
                 showError('Please enter a valid URL (e.g., https://www.example.com)');
+                return;
+            }
+            
+            if (customName && !isValidCustomName(customName)) {
+                if (customName.length < 3) {
+                    showError('Custom name must be at least 3 characters long');
+                } else if (customName.length > 20) {
+                    showError('Custom name must be no more than 20 characters long');
+                } else if (!/^[a-zA-Z0-9_-]+$/.test(customName)) {
+                    showError('Custom name can only contain letters, numbers, hyphens, and underscores');
+                } else if (customName.startsWith('-') || customName.endsWith('-') || 
+                          customName.startsWith('_') || customName.endsWith('_')) {
+                    showError('Custom name cannot start or end with hyphens or underscores');
+                } else {
+                    showError('Invalid custom name format');
+                }
                 return;
             }
             
@@ -607,31 +648,109 @@
             }
         }
 
+        function isValidCustomName(name) {
+            if (!name || name.length < 3 || name.length > 20) {
+                return false;
+            }
+            
+            if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+                return false;
+            }
+            
+            if (name.startsWith('-') || name.endsWith('-') || 
+                name.startsWith('_') || name.endsWith('_')) {
+                return false;
+            }
+            
+            return true;
+        }
+
+        function validateCustomName() {
+            const customName = customNameInput.value.trim();
+            
+            if (customName === '') {
+                customNameInput.style.borderColor = '#e1e5e9';
+                customNameInput.style.boxShadow = 'none';
+                return;
+            }
+            
+            if (customName.length < 3) {
+                customNameInput.style.borderColor = '#ef4444';
+                customNameInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                customNameInput.title = 'Custom name must be at least 3 characters long';
+            } else if (customName.length > 20) {
+                customNameInput.style.borderColor = '#ef4444';
+                customNameInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                customNameInput.title = 'Custom name must be no more than 20 characters long';
+            } else if (!/^[a-zA-Z0-9_-]+$/.test(customName)) {
+                customNameInput.style.borderColor = '#ef4444';
+                customNameInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                customNameInput.title = 'Only letters, numbers, hyphens, and underscores allowed';
+            } else if (customName.startsWith('-') || customName.endsWith('-') || 
+                      customName.startsWith('_') || customName.endsWith('_')) {
+                customNameInput.style.borderColor = '#ef4444';
+                customNameInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                customNameInput.title = 'Cannot start or end with hyphens or underscores';
+            } else {
+                customNameInput.style.borderColor = '#10b981';
+                customNameInput.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                customNameInput.title = 'Valid custom name';
+            }
+        }
+
         async function shortenUrl(url) {
             showLoading();
             
+            const customName = customNameInput.value.trim();
+            
             try {
+                const requestBody = { url: url };
+                if (customName) {
+                    requestBody.custom_name = customName;
+                    console.log('Sending custom name:', customName);
+                }
+                
+                console.log('Sending request:', requestBody);
+                
                 const response = await fetch('/api/shorten', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ url: url })
+                    body: JSON.stringify(requestBody)
                 });
+                
+                console.log('Response status:', response.status);
                 
                 if (!response.ok) {
                     const errorData = await response.text();
-                    throw new Error(errorData || `HTTP ${response.status}`);
+                    console.error('Server error:', errorData);
+                    throw new Error(errorData || `Server error (${response.status}). Please try again.`);
                 }
                 
                 const data = await response.json();
+                console.log('Response data:', data);
                 currentShortCode = data.short_code;
                 
                 showResult(data);
                 
             } catch (err) {
                 console.error('Error shortening URL:', err);
-                showError(`Failed to shorten URL: ${err.message}`);
+                let errorMessage = 'Failed to shorten URL';
+                
+                if (err.message.includes('custom name') && err.message.includes('already taken')) {
+                    errorMessage = `The custom name "${customNameInput.value.trim()}" is already taken. Please choose a different name.`;
+                } else if (err.message.includes('invalid custom name')) {
+                    errorMessage = 'Invalid custom name format. Please use 3-20 characters with letters, numbers, hyphens, and underscores only.';
+                } else if (err.message.includes('invalid URL')) {
+                    errorMessage = 'Please enter a valid URL (e.g., https://www.example.com)';
+                } else if (err.message) {
+                    errorMessage = err.message;
+                } else {
+                    errorMessage = 'An unexpected error occurred. Please try again.';
+                }
+                
+                showError(errorMessage);
             }
         }
 

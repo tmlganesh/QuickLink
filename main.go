@@ -27,7 +27,8 @@ type URLMapping struct {
 }
 
 type CreateURLRequest struct {
-	URL string `json:"url"`
+	URL        string `json:"url"`
+	CustomName string `json:"custom_name,omitempty"`
 }
 
 type CreateURLResponse struct {
@@ -108,17 +109,36 @@ func normalizeURL(str string) string {
 	return str
 }
 
-func (us *URLShortener) CreateShortURL(originalURL string) (*URLMapping, error) {
+func isValidCustomName(name string) bool {
+	if len(name) < 3 || len(name) > 20 {
+		return false
+	}
+
+	for _, char := range name {
+		if !((char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '-' || char == '_') {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (us *URLShortener) CreateShortURL(originalURL, customName string) (*URLMapping, error) {
 	if !isValidURL(originalURL) {
-		return nil, fmt.Errorf("invalid URL provided")
+		return nil, fmt.Errorf("invalid URL provided: %s", originalURL)
 	}
 
 	normalizedURL := normalizeURL(originalURL)
+	log.Printf("Creating short URL for: %s, with custom name: '%s'", normalizedURL, customName)
 
 	us.mutex.RLock()
 	for _, mapping := range us.storage {
 		if mapping.OriginalURL == normalizedURL {
 			us.mutex.RUnlock()
+			log.Printf("URL already exists, returning existing mapping: %s", mapping.ShortCode)
 			return mapping, nil
 		}
 	}
@@ -128,11 +148,28 @@ func (us *URLShortener) CreateShortURL(originalURL string) (*URLMapping, error) 
 	us.mutex.Lock()
 	defer us.mutex.Unlock()
 
-	for {
-		shortCode = us.generateShortCode()
-		if _, exists := us.storage[shortCode]; !exists {
-			break
+	if customName != "" {
+		log.Printf("Processing custom name: '%s'", customName)
+
+		if !isValidCustomName(customName) {
+			return nil, fmt.Errorf("invalid custom name '%s': must be 3-20 characters, using only letters, numbers, hyphens, and underscores", customName)
 		}
+
+		if _, exists := us.storage[customName]; exists {
+			return nil, fmt.Errorf("custom name '%s' is already taken. Please choose a different name", customName)
+		}
+
+		shortCode = customName
+		log.Printf("Using custom name as short code: '%s'", shortCode)
+	} else {
+		log.Printf("Generating random short code")
+		for {
+			shortCode = us.generateShortCode()
+			if _, exists := us.storage[shortCode]; !exists {
+				break
+			}
+		}
+		log.Printf("Generated random short code: '%s'", shortCode)
 	}
 
 	mapping := &URLMapping{
@@ -191,20 +228,39 @@ func (us *URLShortener) createShortURLHandler(w http.ResponseWriter, r *http.Req
 
 	var req CreateURLRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		log.Printf("Error decoding JSON: %v", err)
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
+
+	log.Printf("Received request - URL: '%s', CustomName: '%s'", req.URL, req.CustomName)
 
 	if req.URL == "" {
-		http.Error(w, "URL is required", http.StatusBadRequest)
+		log.Printf("Error: Empty URL provided")
+		http.Error(w, "URL is required and cannot be empty", http.StatusBadRequest)
 		return
 	}
 
-	mapping, err := us.CreateShortURL(req.URL)
+	if req.CustomName != "" && len(req.CustomName) < 3 {
+		log.Printf("Error: Custom name too short: '%s'", req.CustomName)
+		http.Error(w, "Custom name must be at least 3 characters long", http.StatusBadRequest)
+		return
+	}
+
+	if req.CustomName != "" && len(req.CustomName) > 20 {
+		log.Printf("Error: Custom name too long: '%s'", req.CustomName)
+		http.Error(w, "Custom name must be no more than 20 characters long", http.StatusBadRequest)
+		return
+	}
+
+	mapping, err := us.CreateShortURL(req.URL, req.CustomName)
 	if err != nil {
+		log.Printf("Error creating short URL: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	log.Printf("Successfully created mapping - ShortCode: '%s', CustomName was: '%s'", mapping.ShortCode, req.CustomName)
 
 	scheme := "https"
 	if r.Header.Get("X-Forwarded-Proto") != "" {
@@ -339,7 +395,7 @@ func main() {
 	r.HandleFunc("/api/urls", urlShortener.allURLsHandler).Methods("GET")
 	r.HandleFunc("/api/health", urlShortener.healthHandler).Methods("GET")
 
-	r.HandleFunc("/{shortCode:[a-zA-Z0-9]{6}}", urlShortener.redirectHandler).Methods("GET")
+	r.HandleFunc("/{shortCode:[a-zA-Z0-9\\-_]{3,20}}", urlShortener.redirectHandler).Methods("GET")
 
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
